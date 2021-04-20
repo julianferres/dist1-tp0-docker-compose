@@ -7,10 +7,13 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - SERVER_IP=server
-      - SERVER_PORT=12345
-      - SERVER_LISTEN_BACKLOG=5
+      # - SERVER_PORT=12345
+      # - SERVER_LISTEN_BACKLOG=5
+      - CONFIG_FILE_PATH=config/server.json
     networks:
       - testing_net
+    volumes: # Shared folder used to inject config file
+      - "./config:/config"
 
   client1:
     container_name: client1
@@ -25,6 +28,8 @@ services:
       - testing_net
     depends_on:
       - server
+    volumes:
+      - "./config:/config"
 
 networks:
   testing_net:

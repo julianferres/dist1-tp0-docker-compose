@@ -19,11 +19,24 @@ func InitConfig() (*viper.Viper, error) {
 	v.AutomaticEnv()
 	v.SetEnvPrefix("cli")
 
-	// Add env variables supported
-	v.BindEnv("id")
-	v.BindEnv("server", "address")
-	v.BindEnv("loop", "period")
-	v.BindEnv("loop", "lapse")
+	//Add config file support
+	v.BindEnv("config", "path")
+	v.BindEnv("config", "name")
+
+	if !v.IsSet("config_path") || !v.IsSet("config_name") {
+		// Use env variables if not config file (as before this excersice)
+		v.BindEnv("id")
+		v.BindEnv("server", "address")
+		v.BindEnv("loop", "period")
+		v.BindEnv("loop", "lapse")
+	} else {
+		v.AddConfigPath(v.GetString("config_path"))
+		v.SetConfigName(v.GetString("config_name"))
+
+		if err := v.ReadInConfig(); err != nil {
+			return nil, errors.Wrapf(err, "Could not parse config file.")
+		}
+	}
 
 	// Parse time.Duration variables and return an error
 	// if those variables cannot be parsed

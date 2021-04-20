@@ -5,6 +5,8 @@ import time
 import logging
 from common.server import Server
 
+import json 
+
 
 def parse_config_params():
 	""" Parse env variables to find program config params
@@ -17,8 +19,14 @@ def parse_config_params():
 	"""
 	config_params = {}
 	try:
-		config_params["port"] = int(os.environ["SERVER_PORT"])
-		config_params["listen_backlog"] = int(os.environ["SERVER_LISTEN_BACKLOG"])
+		if "CONFIG_FILE_PATH" in os.environ: # Config injected as a config file
+			with open(os.environ["CONFIG_FILE_PATH"]) as config_file:
+				loaded_config = json.load(config_file)
+				config_params["listen_backlog"] = loaded_config["server_listen_backlog"]
+				config_params["port"] = loaded_config["server_port"]
+		else: 
+			config_params["port"] = int(os.environ["SERVER_PORT"])
+			config_params["listen_backlog"] = int(os.environ["SERVER_LISTEN_BACKLOG"])
 	except KeyError as e:
 		raise KeyError("Key was not found. Error: {} .Aborting server".format(e))
 	except ValueError as e:
