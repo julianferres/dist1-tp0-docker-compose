@@ -24,8 +24,10 @@ def parse_config_params():
 				loaded_config = json.load(config_file)
 				config_params["listen_backlog"] = loaded_config["server_listen_backlog"]
 				config_params["port"] = loaded_config["server_port"]
-		else: 
+
+		if "SERVER_PORT" in os.environ: # env variables has priority, if both methods exists 
 			config_params["port"] = int(os.environ["SERVER_PORT"])
+		if "SERVER_LISTEN_BACKLOG" is os.environ:
 			config_params["listen_backlog"] = int(os.environ["SERVER_LISTEN_BACKLOG"])
 	except KeyError as e:
 		raise KeyError("Key was not found. Error: {} .Aborting server".format(e))
