@@ -1,5 +1,7 @@
 import socket
 import logging
+from multiprocessing import Process, Queue
+
 
 class Server:
     def __init__(self, port, listen_backlog):
@@ -7,40 +9,53 @@ class Server:
         self._server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._server_socket.bind(('', port))
         self._server_socket.listen(listen_backlog)
+        self.client_sock_queue = Queue()
+        self.number_of_workers = 5 # serverWorkers pool amount
 
     def run(self):
         """
-        Dummy Server loop
-
-        Server that accept a new connections and establishes a
-        communication with a client. After client with communucation
-        finishes, servers starts to accept new connections again
+        Producer-Consumer server loop
+        The server mantains a queue of accepted sockets and a pool
+        of serverWorkers handles them as soon as they can
         """
 
-        # TODO: Modify this program to handle signal to graceful shutdown
-        # the server
-        while True:
-            client_sock = self.__accept_new_connection()
-            self.__handle_client_connection(client_sock)
+        self.workers = [Process(target=self.__handle_client_connection, args=(id, self.client_sock_queue,))
+                        for id in range(self.number_of_workers)]
+        for w in self.workers:
+            w.start()
+
+        try:
+            while True:
+                client_sock = self.__accept_new_connection()
+                self.client_sock_queue.put(client_sock) # Add to the queue
+        except:
+            print("Se termino el servicio")
+        finally:
+            # Gracefully join all workers and queue
+            for worker in self.workers: 
+                worker.join()
+            self.client_sock_queue.close()
 
 
-    def __handle_client_connection(self, client_sock):
+    def __handle_client_connection(self, id, queue):
         """
         Read message from a specific client socket and closes the socket
 
         If a problem arises in the communication with the client, the
         client socket will also be closed
         """
-        try:
-            msg = client_sock.recv(1024).rstrip()
-            logging.info(
-                'Message received from connection {}. Msg: {}'
-                    .format(client_sock.getpeername(), msg))
-            client_sock.send("Your Message has been received: {}\n".format(msg).encode('utf-8'))
-        except OSError:
-            logging.info("Error while reading socket {}".format(client_sock))
-        finally:
-            client_sock.close()
+        while True:
+            try:
+                client_sock = queue.get() # Blocking if empty
+                msg = client_sock.recv(1024).rstrip()
+                logging.info(
+                    'Message received from connection {}. Msg: {}'
+                        .format(client_sock.getpeername(), msg))
+                client_sock.send("Your Message has been received by worker {}: {}\n".format(id, msg).encode('utf-8'))
+            except OSError:
+                logging.info("Error while reading socket {}".format(client_sock))
+            finally:
+                client_sock.close()
 
 
     def __accept_new_connection(self):
